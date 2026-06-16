@@ -387,11 +387,15 @@ def extract_features(raw: dict, dims: dict) -> dict:
     f["gross_margin_expanding"] = False  # default; could be computed from hist
     # Ticker passthrough
     f["ticker"] = raw.get("ticker", "") if raw else ""
-    # Market: infer from ticker suffix
-    ticker_str = f["ticker"]
-    if ticker_str.endswith(".SZ") or ticker_str.endswith(".SH"):
+    # Market: prefer pipeline metadata. raw["ticker"] can be an unsuffixed A-share
+    # code (e.g. "603993"), while raw["market"] / raw["full"] carry the truth.
+    raw_market = (raw.get("market") if raw else None) or basic.get("market")
+    full_ticker = (raw.get("full") if raw else None) or basic.get("code") or f["ticker"]
+    if raw_market in ("A", "H", "U", "HK", "US"):
+        f["market"] = {"H": "HK", "U": "US"}.get(raw_market, raw_market)
+    elif str(full_ticker).endswith((".SZ", ".SH")):
         f["market"] = "A"
-    elif ticker_str.endswith(".HK"):
+    elif str(full_ticker).endswith(".HK"):
         f["market"] = "HK"
     else:
         f["market"] = "US"
